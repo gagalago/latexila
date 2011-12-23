@@ -1226,7 +1226,10 @@ Street, Fifth Floor, Boston, MA  02110-1301, USA
 	</command>
 
 	<command name="includegraphics" package="graphicx">
-		<argument label="Options" type="optional" />
+		<argument label="Options" type="optional" separator=",">
+			<choice name="width" />
+			<choice name="height" />
+		</argument>
 		<argument label="File">
 			<placeholder key="ImageFiles" />
 		</argument>

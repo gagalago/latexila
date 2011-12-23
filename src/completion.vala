@@ -33,6 +33,7 @@ public class CompletionProvider : GLib.Object, SourceCompletionProvider
         string label;
         bool optional;
         CompletionChoice[] choices;
+        string? separator;
     }
 
     struct CompletionChoice
@@ -510,6 +511,9 @@ public class CompletionProvider : GLib.Object, SourceCompletionProvider
                         case "type":
                             current_arg.optional = attr_values[i] == "optional";
                             break;
+                        case "separator":
+                            current_arg.separator = attr_values[i];
+                            break;
                         default:
                             throw new MarkupError.UNKNOWN_ATTRIBUTE (
                                 "unknown argument attribute \"" + attr_names[i] + "\"");
@@ -820,6 +824,15 @@ public class CompletionProvider : GLib.Object, SourceCompletionProvider
             if (text[cur_pos].isalpha () || text[cur_pos] == '*')
             {
                 cmd_name = get_latex_command_at_index (text, cur_pos);
+
+                string arg_full = argument_contents;
+                argument_contents = get_argument_contents_prefix (
+                    cmd_name, arguments, argument_contents);
+
+                // if multiple arguments
+                valid_arg_contents = valid_arg_contents
+                    || arg_full != argument_contents;
+
                 return cmd_name != null;
             }
 
@@ -840,6 +853,42 @@ public class CompletionProvider : GLib.Object, SourceCompletionProvider
         }
 
         return false;
+    }
+
+   /* The prefix is what is taken into account for filtering all the argument
+    * proposals.
+    */
+    private string get_argument_contents_prefix (string cmd_name,
+                                                  Gee.ArrayList<bool> arguments,
+                                                  string argument_contents)
+    {
+        string separator = get_separator (cmd_name, arguments);
+
+        long end_pos = argument_contents.length - 1;
+
+        for (long cur_pos = end_pos ; 0 <= cur_pos ; cur_pos--)
+        {
+            bool multiple_argument =
+                argument_contents[cur_pos].to_string () == separator
+                && ! Utils.char_is_escaped (argument_contents, cur_pos);
+
+            if (multiple_argument)
+                return argument_contents[cur_pos + 1 : end_pos + 1];
+
+        }
+
+        return argument_contents;
+    }
+
+    private string? get_separator (string cmd_name, Gee.ArrayList<bool> arguments)
+    {
+        CompletionCommand cmd = commands[cmd_name];
+
+        int num = get_argument_num (cmd.args, arguments);
+        if (num > 0)
+            return cmd.args[num-1].separator;
+        else
+            return null;
     }
 
     // static because of bug #627736
